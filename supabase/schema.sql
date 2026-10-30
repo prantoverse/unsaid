@@ -1,7 +1,7 @@
 -- UNSAID — database schema
 -- Run once in Supabase → SQL Editor. Safe to re-run.
 
-create extension if not exists pg_trgm;
+create extension if not exists pg_trgm with schema extensions;
 create extension if not exists pgcrypto with schema extensions;
 
 create table if not exists public.messages (
@@ -28,7 +28,7 @@ create table if not exists public.messages (
 alter table public.messages add column if not exists to_handle text check (to_handle ~ '^[a-z0-9._]{1,30}$');
 
 create index if not exists messages_recent_idx on public.messages (created_at desc) where not hidden;
-create index if not exists messages_to_trgm_idx on public.messages using gin (to_key gin_trgm_ops);
+create index if not exists messages_to_trgm_idx on public.messages using gin (to_key extensions.gin_trgm_ops);
 create index if not exists messages_handle_idx on public.messages (to_handle, created_at desc) where to_handle is not null;
 
 -- ── Row Level Security ─────────────────────────────────────────────
