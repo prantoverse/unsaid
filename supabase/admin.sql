@@ -1,0 +1,8 @@
+-- UNSAID — usage events + admin dashboard functions.
+-- Already applied to the live project. To set up a fresh project, run
+-- schema.sql first, then this file, then set your key:
+--   insert into public.admin_secret (id, key_hash)
+--   values (1, encode(extensions.digest('YOUR-NEW-KEY', 'sha256'), 'hex'))
+--   on conflict (id) do update set key_hash = excluded.key_hash;
+-- The full function bodies live in the migration "unsaid_events_and_admin"
+-- (Supabase dashboard → Database → Migrations).
