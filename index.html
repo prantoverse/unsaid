@@ -22,6 +22,7 @@
   <nav>
     <a href="./?send" data-nav>send</a>
     <a href="./?mine" data-nav>my sent</a>
+    <a href="./?guide" id="guideBtn">guide</a>
   </nav>
 </header>
 
@@ -210,6 +211,22 @@
     </div>
   </div>
 </dialog>
+
+<!-- guided tour -->
+<div id="tour" class="tour" role="dialog" aria-labelledby="tourTitle" hidden>
+  <div class="tour-card">
+    <div class="tour-top">
+      <span class="label" id="tourStep">1 / 7</span>
+      <button class="link" id="tourSkip" type="button">skip</button>
+    </div>
+    <div class="tour-body" id="tourBody"></div>
+    <div class="tour-nav">
+      <div class="tour-dots" id="tourDots"></div>
+      <button class="btn ghost" id="tourBack" type="button">back</button>
+      <button class="btn primary" id="tourNext" type="button">next</button>
+    </div>
+  </div>
+</div>
 
 <div id="toast" role="status" aria-live="polite"></div>
 <script type="module" src="app.js"></script>

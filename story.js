@@ -249,6 +249,56 @@ export async function renderRequestStory({ name, handle, prompt }, palette) {
   return c;
 }
 
+/** admin "so far" stats story */
+export async function renderStatsStory(stats, palette) {
+  await ensureFonts();
+  const { c, ctx } = base(palette);
+  const t = stats.totals;
+  const fmt = (n) => (n >= 10000 ? (n / 1000).toFixed(n >= 100000 ? 0 : 1) + 'k' : n.toLocaleString('en-US'));
+  wordmark(ctx, palette, 140);
+  ctx.textAlign = 'center';
+  ctx.font = `500 34px ${SANS}`; ctx.fillStyle = 'rgba(255,255,255,.7)';
+  ctx.fillText('so far', W / 2, 212);
+
+  let y = 300;
+  for (const [n, label] of [[t.messages, 'songs sent'], [t.recipients, 'people got a song'], [t.visitors, 'people visited']]) {
+    ctx.font = `700 176px ${SANS}`;
+    ghost(ctx, fmt(n), W / 2, y, palette, 10);
+    y += 186;
+    ctx.font = `500 42px ${SANS}`; ctx.fillStyle = 'rgba(255,255,255,.82)';
+    ctx.fillText(label, W / 2, y);
+    y += 116;
+  }
+
+  const top = stats.top_songs?.[0];
+  if (top) {
+    const bx = 110, bw = W - 220, bh = 200, by = y + 10;
+    ctx.save(); rrect(ctx, bx, by, bw, bh, 36);
+    ctx.fillStyle = 'rgba(8,5,20,.55)'; ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,.18)'; ctx.lineWidth = 2; ctx.stroke(); ctx.restore();
+    let tx = bx + 40;
+    if (isSafeArt(top.art)) {
+      try {
+        const img = await loadImage(top.art);
+        ctx.save(); rrect(ctx, bx + 30, by + 30, 140, 140, 20); ctx.clip(); drawCover(ctx, img, bx + 30, by + 30, 140); ctx.restore();
+        tx = bx + 200;
+      } catch { /* no art */ }
+    }
+    ctx.textAlign = 'left';
+    ctx.font = `500 30px ${SANS}`; ctx.fillStyle = 'rgba(255,255,255,.6)';
+    ctx.fillText('most sent song', tx, by + 42);
+    const T = fit(ctx, top.title, { maxW: bx + bw - tx - 30, maxLines: 1, size: 50, min: 34, font: (s) => `700 ${s}px ${SANS}` });
+    ctx.font = `700 ${T.size}px ${SANS}`; ctx.fillStyle = '#fff';
+    ctx.fillText(T.lines[0], tx, by + 86);
+    if (top.artist) {
+      ctx.font = `500 32px ${SANS}`; ctx.fillStyle = 'rgba(255,255,255,.7)';
+      ctx.fillText(top.artist.length > 32 ? top.artist.slice(0, 31) + '…' : top.artist, tx, by + 146);
+    }
+  }
+  footer(ctx, 'send yours, anonymously · UNSAID');
+  return c;
+}
+
 export function toBlob(canvas) {
   return new Promise((res, rej) => canvas.toBlob((b) => (b ? res(b) : rej(new Error('render failed'))), 'image/png'));
 }

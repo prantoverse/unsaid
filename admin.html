@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<title>UNSAID admin</title>
+<meta name="theme-color" content="#07050f">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%2307050f'/%3E%3Ccircle cx='32' cy='32' r='10' fill='%23ff3d81'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body class="admin">
+<canvas id="bg" aria-hidden="true"></canvas>
+
+<header class="top">
+  <div class="brand"><a class="wordmark ghost-text" href="./">UNSAID</a><span class="badge">admin</span></div>
+  <div id="controls" class="admin-controls" hidden>
+    <div class="seg" role="group" aria-label="date range">
+      <button type="button" data-days="7">7d</button>
+      <button type="button" data-days="30" aria-pressed="true">30d</button>
+      <button type="button" data-days="90">90d</button>
+    </div>
+    <span id="live" class="live" title="refreshes every 30 seconds">live</span>
+    <button id="lockBtn" class="link" type="button">lock</button>
+  </div>
+</header>
+
+<main class="admin-main">
+  <!-- key gate -->
+  <section id="gate" class="view" hidden>
+    <form id="gateForm" class="panel gate">
+      <h1 class="ghost-text">admin</h1>
+      <p class="hint">Enter your admin key. It stays on this device.</p>
+      <input id="keyInput" type="password" autocomplete="current-password" placeholder="unsaid_…" required>
+      <button class="btn primary" type="submit">open dashboard</button>
+      <p id="gateMsg" class="hint" role="status"></p>
+    </form>
+  </section>
+
+  <section id="dash" class="view" hidden>
+    <div class="dash-head">
+      <h1 class="ghost-text">the numbers</h1>
+      <div class="row">
+        <button id="storyBtn" class="btn primary" type="button">share stats to story</button>
+        <button id="refreshBtn" class="btn" type="button">refresh</button>
+      </div>
+    </div>
+    <p id="updated" class="hint"></p>
+
+    <div class="kpis" id="kpis"></div>
+
+    <div class="grid-2">
+      <article class="panel chart-panel">
+        <header><h2>songs sent per day</h2><span class="hint" id="sendsTotal"></span></header>
+        <div class="chart" id="sendsChart"></div>
+      </article>
+      <article class="panel chart-panel">
+        <header><h2>visitors per day</h2><span class="hint" id="visitorsTotal"></span></header>
+        <div class="chart" id="visitorsChart"></div>
+      </article>
+    </div>
+
+    <div class="grid-2">
+      <article class="panel">
+        <header><h2>when songs get sent</h2><span class="hint">Dhaka time</span></header>
+        <div id="hours" class="hours"></div>
+        <div class="hours-axis"><span>12am</span><span>6am</span><span>12pm</span><span>6pm</span><span>11pm</span></div>
+      </article>
+      <article class="panel">
+        <header><h2>what people do</h2><span class="hint">all time</span></header>
+        <ul id="actions" class="barlist"></ul>
+      </article>
+    </div>
+
+    <div class="grid-3">
+      <article class="panel"><header><h2>most sent songs</h2></header><ol id="topSongs" class="toplist"></ol></article>
+      <article class="panel"><header><h2>top artists</h2></header><ol id="topArtists" class="toplist"></ol></article>
+      <article class="panel"><header><h2>most loved</h2><span class="hint">recipients</span></header><ol id="topRecipients" class="toplist"></ol></article>
+    </div>
+
+    <article class="panel">
+      <header><h2>moderation</h2><span class="hint" id="modHint"></span></header>
+      <div class="table-wrap">
+        <table class="mod">
+          <thead><tr><th>to</th><th>message</th><th>song</th><th>when</th><th>status</th><th></th></tr></thead>
+          <tbody id="modBody"></tbody>
+        </table>
+      </div>
+    </article>
+  </section>
+
+  <section id="loading" class="view"><div class="vinyl spin small" aria-label="loading"></div></section>
+</main>
+
+<div id="tip" class="tip" role="tooltip" hidden></div>
+
+<dialog id="storyDialog">
+  <div class="dialog-body story">
+    <img id="storyPreview" alt="stats story preview">
+    <div class="row center">
+      <button id="storyShare" class="btn primary" type="button">share</button>
+      <a id="storyDownload" class="btn" download>save image</a>
+      <button class="btn ghost" type="button" data-close>close</button>
+    </div>
+  </div>
+</dialog>
+
+<div id="toast" role="status" aria-live="polite"></div>
+<script type="module" src="admin.js"></script>
+</body>
+</html>

@@ -15,6 +15,22 @@ No build step. Static files + Supabase. Host on GitHub Pages.
 - **Visual feedback:** a WebGL domain-warped shader recolors to each song's album art. It breathes with the audio (WebAudio analyser), ripples on send/select, follows the pointer and speeds up while you type. Text gets the afterimage ghost on transitions.
 - **Safety:** no accounts, no sender identity stored. Each sender gets a device-only delete token (stored hashed). 3 reports hide a message. Artwork/preview URLs are restricted to known music CDNs (no tracking pixels).
 
+## Guide
+
+A guided tour opens once on a visitor's first visit to the home page, and again any time from **guide** in the top bar (or `?guide`). It spotlights the real buttons and has quick actions (send one now, search my name, make my card). It uses the same pattern as AFTERIMAGE: Back/Next, dots, ← → keys, Esc to close.
+
+## Admin dashboard
+
+`admin.html` (not linked anywhere) → enter the admin key. It shows:
+- **Totals:** visitors, songs sent, recipients, visitor → sender conversion, story shares
+- **Charts:** songs per day and visitors per day, plus a send-time heat strip (Dhaka time)
+- **Usage:** what people do (searches, plays, request cards, story shares, guide opens)
+- **Rankings:** top songs, artists and recipients
+- **Moderation:** hide, unhide or delete messages
+- **Share stats to story:** renders a 1080×1920 "so far" card
+
+It refreshes every 30s. Usage events store only a random per-device id, never names or IPs. The key is checked server-side against a sha256 stored in `public.admin_secret`. To rotate it, update that row with a new hash.
+
 ## Demo mode
 
 With no keys in `config.js` the app runs on sample data (fake songs, generated covers, a synthetic beat), so you can click through every screen before setting up Supabase.

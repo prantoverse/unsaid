@@ -68,6 +68,17 @@ async function sha256(s) {
   return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
+// ── anonymous usage events (random per-device id, nothing personal) ──
+const DEVICE = (() => {
+  let d = store.get('unsaid:device', null);
+  if (!/^[0-9a-f]{32}$/.test(d || '')) { d = randomHex(16); store.set('unsaid:device', d); }
+  return d;
+})();
+function track(kind, ref = null) {
+  if (demo) return;
+  sb.from('events').insert({ device: DEVICE, kind, ref }).then(() => {}, () => {});
+}
+
 // ── visual feedback ──────────────────────────────────────────────
 function setPalette(p) {
   const pal = p && p.length >= 3 ? p : DEFAULT_PALETTE;
@@ -143,6 +154,7 @@ async function route() {
   if (p.has('for')) return showSend({ to: p.get('for') || '', name: p.get('n'), prompt: p.get('p') });
   if (p.has('send')) return showSend({});
   if (p.has('mine')) return showMine();
+  if (p.has('guide')) { await showHome(); return openTour(0); }
   return showHome();
 }
 
@@ -203,6 +215,7 @@ $('#searchForm').addEventListener('submit', (e) => {
 // ── search ───────────────────────────────────────────────────────
 async function showSearch(q) {
   show('loading');
+  track('search');
   const handle = q.startsWith('@') ? cleanHandle(q) : null;
   const key = q.toLowerCase().replace(/\s+/g, ' ').trim().replace(/[\\%_,()*"]/g, '');
   let query = sb.from('messages').select(COLS).order('created_at', { ascending: false }).limit(60);
@@ -401,6 +414,7 @@ $('#sendForm').addEventListener('submit', async (e) => {
 
   store.set('unsaid:last', Date.now());
   store.set('unsaid:mine', [{ id, token, at: Date.now() }, ...getMine()].slice(0, 200));
+  track('send', id);
   pulseFrom(btn, 1);
   player.stop(); syncPlay();
   $('#sentOpen').href = `./?m=${id}`;
@@ -418,6 +432,7 @@ async function showMessage(id) {
   const { data: m, error } = await sb.from('messages').select(COLS).eq('id', id).maybeSingle();
   if (error || !m) return show('missing');
   current = m;
+  track('view', m.id);
   setPalette(palOf(m));
 
   $('#mTo').textContent = 'to: ' + m.to_name + (m.to_handle ? ' · @' + m.to_handle : '');
@@ -461,6 +476,7 @@ async function showMessage(id) {
 }
 
 $('#mPlay').addEventListener('click', () => {
+  if (!player.playing) track('play', current?.id);
   player.toggle().catch(() => toast('preview unavailable'));
   pulseFrom($('#mPlay'), 0.6);
 });
@@ -542,6 +558,7 @@ async function makeStory(canvasPromise, filename, link, hint) {
 
 $('#storyShare').addEventListener('click', async () => {
   if (!story) return;
+  track('story_share');
   copy(story.link, false);
   const r = await shareImage(story.blob, story.filename);
   if (r === 'shared') toast('link copied. add a Link sticker ✦');
@@ -574,6 +591,7 @@ $('#reqForm').addEventListener('submit', (e) => {
   if (handleRaw && !handle) { toast('that @handle looks off'); return shake($('#reqHandle')); }
   const prompt = $('#reqPrompt').value.trim().slice(0, 80) || DEFAULT_PROMPT;
   store.set('unsaid:me', { name, handle, prompt });
+  track('request_card');
   $('#reqDialog').close();
   const pal = paletteFromString(handle || name);
   setPalette(pal);
@@ -589,6 +607,144 @@ $('#reqForm').addEventListener('submit', (e) => {
 for (const b of $$('[data-close]')) b.addEventListener('click', () => b.closest('dialog').close());
 for (const d of $$('dialog')) d.addEventListener('click', (e) => { if (e.target === d) d.close(); });
 
+// ── guided tour (same pattern as AFTERIMAGE's) ───────────────────
+const TOUR = [
+  {
+    title: 'Say it with a song',
+    body: 'UNSAID lets you send someone a song and the words you never said. It is anonymous: no account, no name attached. Here is how it works in one minute.',
+    hero: true,
+  },
+  {
+    title: 'Send a song',
+    body: 'Write who it is for, pick a song, then say what you never said.',
+    target: '.cta .btn.primary',
+    flow: ['to: their name or @handle', 'search a song or paste a Spotify / YouTube link', 'add your message (and the line that hit)', 'send. nobody sees it was you'],
+    numbered: true,
+    actions: [{ label: 'send one now', run: () => { closeTour(); go('./?send'); } }],
+  },
+  {
+    title: 'Find songs sent to you',
+    body: 'Search your name or your @handle. A handle finds only yours; a name finds everyone with that name.',
+    target: '#searchForm',
+    actions: [{ label: 'search my name', run: () => { closeTour(); $('#searchInput').focus(); } }],
+  },
+  {
+    title: 'Ask for songs',
+    body: 'Make a request card for your Instagram story. Friends who tap it land on a form already addressed to you.',
+    target: '#reqOpenBtn',
+    actions: [{ label: 'make my card', run: () => { closeTour(); $('#reqOpenBtn').click(); } }],
+  },
+  {
+    title: 'Post it to your story',
+    body: 'Works for your request card and for any song someone sent you.',
+    flow: ['tap share', 'pick Instagram, then Story', 'add a Link sticker', 'paste. the link is already copied'],
+    numbered: true,
+    foot: 'On a laptop the image downloads instead. Post it from your phone.',
+  },
+  {
+    title: 'The wall',
+    body: 'Every song lands here. Tap one to hear a 30-second preview: the whole screen takes the cover’s colours and moves with the beat.',
+    target: '#wall',
+  },
+  {
+    title: 'Kept kind',
+    body: 'A few things that keep it safe:',
+    flow: ['your name is never stored', 'delete anything you sent from “my sent” on the same device', 'anything hurtful can be reported. 3 reports hide it'],
+    foot: 'Open this guide again any time from “guide” at the top.',
+  },
+];
+let tourAt = 0;
+let tourFocus = null;
+
+function renderTour() {
+  const step = TOUR[tourAt];
+  const body = $('#tourBody');
+  body.replaceChildren();
+  $('#tourStep').textContent = `${tourAt + 1} / ${TOUR.length}`;
+  if (step.hero) { const v = el('div', 'vinyl spin tour-hero'); v.setAttribute('aria-hidden', 'true'); body.append(v); }
+  const h = text('h2', 'tour-title ghost-text', step.title);
+  h.id = 'tourTitle';
+  body.append(h, text('p', 'tour-text', step.body));
+  if (step.flow) {
+    const ol = el(step.numbered ? 'ol' : 'ul', 'tour-flow' + (step.numbered ? ' numbered' : ''));
+    for (const f of step.flow) ol.append(text('li', null, f));
+    body.append(ol);
+  }
+  if (step.actions) {
+    const row = el('div', 'row tour-actions');
+    for (const a of step.actions) { const b = text('button', 'btn', a.label); b.type = 'button'; b.addEventListener('click', a.run); row.append(b); }
+    body.append(row);
+  }
+  if (step.foot) body.append(text('p', 'tour-foot', step.foot));
+
+  const dots = $('#tourDots');
+  dots.replaceChildren();
+  TOUR.forEach((_, i) => {
+    const d = el('button', 'tour-dot');
+    d.type = 'button';
+    d.setAttribute('aria-label', `step ${i + 1}`);
+    if (i === tourAt) d.setAttribute('aria-current', 'step');
+    d.addEventListener('click', () => { tourAt = i; renderTour(); });
+    dots.append(d);
+  });
+  $('#tourBack').disabled = tourAt === 0;
+  $('#tourNext').textContent = tourAt === 0 ? 'show me' : tourAt === TOUR.length - 1 ? 'start' : 'next';
+
+  const card = $('.tour-card');
+  card.classList.remove('swap'); void card.offsetWidth; card.classList.add('swap');
+
+  tourFocus?.classList.remove('tour-focus');
+  tourFocus = step.target ? $(step.target) : null;
+  $('#tour').classList.toggle('spot', !!tourFocus);
+  if (tourFocus) {
+    tourFocus.classList.add('tour-focus');
+    const r = tourFocus.getBoundingClientRect();
+    scrollTo({ top: Math.max(0, r.top + scrollY - innerHeight * 0.18), behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+    setTimeout(() => pulseFrom(tourFocus, 0.7), 350);
+  } else {
+    scrollTo({ top: 0, behavior: 'smooth' });
+    pulseFrom(null, 0.5);
+  }
+}
+
+function openTour(i = 0) {
+  if (!$('#view-home').hidden || params().has('guide')) {
+    tourAt = i;
+    $('#tour').hidden = false;
+    document.body.classList.add('touring');
+    renderTour();
+    $('#tourNext').focus();
+    track('guide');
+  } else {
+    go('./?guide');
+  }
+}
+function closeTour() {
+  $('#tour').hidden = true;
+  document.body.classList.remove('touring');
+  tourFocus?.classList.remove('tour-focus');
+  tourFocus = null;
+  store.set('unsaid:toured', 1);
+}
+$('#tourNext').addEventListener('click', () => {
+  if (tourAt >= TOUR.length - 1) return closeTour();
+  tourAt++; renderTour();
+});
+$('#tourBack').addEventListener('click', () => { if (tourAt > 0) { tourAt--; renderTour(); } });
+$('#tourSkip').addEventListener('click', closeTour);
+$('#guideBtn').addEventListener('click', (e) => { e.preventDefault(); openTour(0); });
+document.addEventListener('keydown', (e) => {
+  if ($('#tour').hidden) return;
+  if (e.key === 'ArrowRight') $('#tourNext').click();
+  else if (e.key === 'ArrowLeft') $('#tourBack').click();
+  else if (e.key === 'Escape') closeTour();
+});
+
 // ── go ───────────────────────────────────────────────────────────
 updateCounters();
-route();
+await route();
+try {
+  if (!sessionStorage.getItem('unsaid:visited')) { sessionStorage.setItem('unsaid:visited', '1'); track('visit'); }
+} catch { track('visit'); }
+// first visit on the home page → open the guide once
+if (!store.get('unsaid:toured', 0) && !$('#view-home').hidden && $('#tour').hidden) setTimeout(() => openTour(0), 900);
