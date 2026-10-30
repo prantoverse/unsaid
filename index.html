@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>UNSAID — songs you can't say</title>
+<meta name="description" content="Send someone a song and the words you never said. Anonymous. Search your name to find songs sent to you.">
+<meta property="og:title" content="UNSAID — songs you can't say">
+<meta property="og:description" content="Send someone a song, anonymously. Search your name to see what was sent to you.">
+<meta name="theme-color" content="#07050f">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%2307050f'/%3E%3Ccircle cx='32' cy='32' r='10' fill='%23ff3d81'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<canvas id="bg" aria-hidden="true"></canvas>
+
+<header class="top">
+  <div class="brand"><a class="wordmark ghost-text" href="./" data-nav>UNSAID</a><span id="demoBadge" class="badge" hidden>demo · sample data</span></div>
+  <nav>
+    <a href="./?send" data-nav>send</a>
+    <a href="./?mine" data-nav>my sent</a>
+  </nav>
+</header>
+
+<main>
+  <!-- setup -->
+  <section id="view-setup" class="view" hidden>
+    <div class="panel">
+      <h2>almost there</h2>
+      <p>Add your Supabase URL and anon key to <code>config.js</code>, then run <code>supabase/schema.sql</code>. Steps are in the README.</p>
+    </div>
+  </section>
+
+  <!-- home -->
+  <section id="view-home" class="view" hidden>
+    <h1 class="hero ghost-text">say it<br><em>with a song.</em></h1>
+    <p class="sub">Send someone a song and the words you never said. They'll never know it was you.</p>
+    <div class="row cta">
+      <a class="btn primary big" href="./?send" data-nav>send a song</a>
+      <button class="btn big" id="reqOpenBtn" type="button">make my request card</button>
+    </div>
+
+    <form id="searchForm" class="search" role="search">
+      <input id="searchInput" type="search" placeholder="search your name or @handle" autocomplete="off" maxlength="40" aria-label="search a name">
+      <button class="btn" type="submit">find</button>
+    </form>
+
+    <h2 class="section-title">just sent</h2>
+    <ul id="wall" class="wall"></ul>
+    <button id="moreBtn" class="btn ghost" type="button" hidden>load more</button>
+  </section>
+
+  <!-- search results -->
+  <section id="view-search" class="view" hidden>
+    <p class="label">songs for</p>
+    <h1 id="searchTitle" class="ghost-text"></h1>
+    <div class="row">
+      <a id="searchSendBtn" class="btn primary" href="./?send" data-nav>send them one</a>
+      <a class="btn" href="./" data-nav>back</a>
+    </div>
+    <ul id="searchResults" class="wall"></ul>
+    <p id="searchEmpty" class="empty" hidden>nothing yet. maybe someone's still working up the courage.</p>
+  </section>
+
+  <!-- send -->
+  <section id="view-send" class="view" hidden>
+    <div id="forHeader" class="for" hidden>
+      <p class="label">send a song to</p>
+      <h1 id="forName" class="ghost-text"></h1>
+      <p id="forPrompt" class="prompt"></p>
+    </div>
+    <h1 id="sendTitle" class="ghost-text">send a song</h1>
+
+    <form id="sendForm" class="panel" novalidate>
+      <div id="toFields" class="grid2">
+        <label>to <span class="hint">their name</span>
+          <input id="toName" maxlength="40" required autocomplete="off" placeholder="e.g. Riya">
+        </label>
+        <label>@handle <span class="hint">optional · easier to find</span>
+          <input id="toHandle" maxlength="31" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="@riya.writes">
+        </label>
+      </div>
+
+      <div class="field">
+        <div class="tabs" role="tablist">
+          <button type="button" class="tab active" data-tab="search" role="tab">search song</button>
+          <button type="button" class="tab" data-tab="link" role="tab">paste link</button>
+        </div>
+        <div data-pane="search">
+          <input id="songQuery" type="search" autocomplete="off" placeholder="song or artist">
+          <ul id="songResults" class="results"></ul>
+        </div>
+        <div data-pane="link" hidden>
+          <input id="songLink" type="url" placeholder="spotify · youtube · soundcloud link">
+          <p class="hint" id="linkHint"></p>
+        </div>
+        <div id="chosen" class="chosen" hidden>
+          <img id="chosenArt" alt="" referrerpolicy="no-referrer">
+          <div class="chosen-meta">
+            <input id="chosenTitle" maxlength="200" placeholder="title" aria-label="song title">
+            <input id="chosenArtist" maxlength="200" placeholder="artist" aria-label="artist">
+          </div>
+          <button type="button" id="chosenPlay" class="icon-btn" aria-label="play preview" hidden>▶</button>
+          <button type="button" id="chosenClear" class="icon-btn" aria-label="choose another">×</button>
+        </div>
+      </div>
+
+      <label>your message <span class="counter" id="messageCount"></span>
+        <textarea id="message" rows="4" maxlength="500" required placeholder="the thing you never said"></textarea>
+      </label>
+      <label>the line that hit <span class="hint">optional · one line, not the whole song</span> <span class="counter" id="lyricCount"></span>
+        <textarea id="lyric" rows="2" maxlength="150" placeholder="the part you'd rewind"></textarea>
+      </label>
+      <input id="hp" class="hp" tabindex="-1" autocomplete="off" aria-hidden="true">
+      <button id="sendBtn" class="btn primary big" type="submit">send anonymously</button>
+      <p class="hint center">public on the wall · no account · no name attached</p>
+    </form>
+  </section>
+
+  <!-- sent -->
+  <section id="view-sent" class="view" hidden>
+    <div class="panel center">
+      <div class="vinyl spin" aria-hidden="true"></div>
+      <h1 class="ghost-text">sent.</h1>
+      <p>they'll never know it was you. send them the link, or let them find it.</p>
+      <div class="row center">
+        <a id="sentOpen" class="btn primary" href="#" data-nav>view it</a>
+        <button id="sentCopy" class="btn" type="button">copy link</button>
+        <button id="sentAnother" class="btn ghost" type="button">send another</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- single message -->
+  <section id="view-message" class="view" hidden>
+    <article id="msgCard" class="msg">
+      <p class="label" id="mTo"></p>
+      <div class="art-wrap">
+        <img id="mArt" alt="" referrerpolicy="no-referrer">
+        <div id="mVinyl" class="vinyl" hidden></div>
+        <button id="mPlay" class="play" type="button" aria-label="play preview" hidden>
+          <svg viewBox="0 0 44 44" aria-hidden="true"><circle class="track" cx="22" cy="22" r="20"/><circle id="mRing" class="ring" cx="22" cy="22" r="20"/></svg>
+          <span id="mPlayIcon">▶</span>
+        </button>
+      </div>
+      <h1 id="mTitle" class="ghost-text"></h1>
+      <p id="mArtist" class="artist"></p>
+      <blockquote id="mLyric" hidden></blockquote>
+      <p id="mMessage" class="note"></p>
+      <p id="mTime" class="time"></p>
+      <div id="mEmbed" class="embed"></div>
+    </article>
+    <div class="row center actions">
+      <button id="mStory" class="btn primary" type="button">share to story</button>
+      <button id="mCopy" class="btn" type="button">copy link</button>
+      <a id="mSendOne" class="btn" href="./?send" data-nav>send one to someone</a>
+    </div>
+    <div class="row center small-actions">
+      <button id="mDelete" class="link danger" type="button" hidden>delete (you sent this)</button>
+      <button id="mReport" class="link" type="button">report</button>
+    </div>
+  </section>
+
+  <!-- my sent -->
+  <section id="view-mine" class="view" hidden>
+    <h1 class="ghost-text">my sent</h1>
+    <p class="sub">Only on this device. Clear your browser data and these can't be deleted anymore.</p>
+    <ul id="mineList" class="wall"></ul>
+    <p id="mineEmpty" class="empty" hidden>nothing sent from this device yet.</p>
+  </section>
+
+  <section id="view-missing" class="view" hidden>
+    <div class="panel center">
+      <h2>gone quiet.</h2>
+      <p>This song was deleted or never existed.</p>
+      <a class="btn primary" href="./" data-nav>home</a>
+    </div>
+  </section>
+
+  <section id="view-loading" class="view"><div class="vinyl spin small" aria-label="loading"></div></section>
+</main>
+
+<!-- request card -->
+<dialog id="reqDialog">
+  <form id="reqForm" method="dialog" class="dialog-body">
+    <h2>make your request card</h2>
+    <p class="hint">Post it to your story with a link sticker. People who tap it land on a form already addressed to you.</p>
+    <label>your name <input id="reqName" maxlength="40" required placeholder="Riya"></label>
+    <label>@instagram <span class="hint">recommended</span> <input id="reqHandle" maxlength="31" autocapitalize="off" spellcheck="false" placeholder="@riya.writes"></label>
+    <label>prompt <input id="reqPrompt" maxlength="80" placeholder="send me a song that reminds you of me"></label>
+    <div class="row">
+      <button class="btn primary" value="make" type="submit">make card</button>
+      <button class="btn ghost" value="cancel" type="button" data-close>cancel</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- story preview -->
+<dialog id="storyDialog">
+  <div class="dialog-body story">
+    <img id="storyPreview" alt="story preview">
+    <p id="storyHint" class="hint"></p>
+    <div class="row center">
+      <button id="storyShare" class="btn primary" type="button">share</button>
+      <a id="storyDownload" class="btn" download>save image</a>
+      <button class="btn ghost" type="button" data-close>close</button>
+    </div>
+  </div>
+</dialog>
+
+<div id="toast" role="status" aria-live="polite"></div>
+<script type="module" src="app.js"></script>
+</body>
+</html>
