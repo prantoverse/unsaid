@@ -132,7 +132,7 @@ class Query {
   }
   maybeSingle() { this.one = true; return this; }
   then(res, rej) {
-    let r = getRows();
+    let r = getRows().filter((x) => !x.private);
     for (const op of this.ops) r = op(r);
     return new Promise((ok) => setTimeout(ok, 180))
       .then(() => ({ data: this.one ? r[0] || null : r, error: null }))
@@ -149,7 +149,8 @@ export function demoClient() {
         return { error: null };
       },
     }),
-    rpc: async (name, { p_id }) => {
+    rpc: async (name, { p_id, p_ids }) => {
+      if (name === 'get_messages') return { data: getRows().filter((x) => p_ids.includes(x.id)), error: null };
       if (name === 'delete_message') {
         const before = getRows().length;
         rows = getRows().filter((x) => x.id !== p_id);

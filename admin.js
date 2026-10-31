@@ -278,7 +278,9 @@ function renderHours(hours) {
 function renderActions(t) {
   const rows = [
     ['page visits', t.visits], ['songs opened', t.views], ['previews played', t.plays], ['name searches', t.searches],
-    ['request cards made', t.request_cards], ['story shares', t.story_shares], ['guide opened', t.guides],
+    ['request cards made', t.request_cards], ['story shares', t.story_shares],
+    ['delivered by app', t.deliveries ?? 0], ['emailed anonymously', t.emailed ?? 0], ['sent private', t.private ?? 0],
+    ['guide opened', t.guides],
   ];
   const max = Math.max(1, ...rows.map((r) => r[1]));
   $('#actions').replaceChildren(...rows.map(([label, n]) => {
@@ -324,7 +326,7 @@ function renderMod() {
   $('#modBody').replaceChildren(...rows.map((r) => {
     const tr = el('tr');
     if (r.hidden || r.reports) tr.className = 'flag';
-    const status = r.hidden ? 'hidden' : r.reports ? `${r.reports} report${r.reports > 1 ? 's' : ''}` : 'live';
+    const status = r.hidden ? 'hidden' : r.reports ? `${r.reports} report${r.reports > 1 ? 's' : ''}` : r.private ? 'private' : 'live';
     const to = el('td'); to.append(el('strong', null, r.to_name), el('small', null, r.to_handle ? '@' + r.to_handle : ''));
     const msg = el('td', 'msg-cell', r.message);
     const song = el('td', 'song-cell', r.song_title + (r.song_artist ? ' — ' + r.song_artist : ''));

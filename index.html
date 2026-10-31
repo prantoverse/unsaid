@@ -115,9 +115,19 @@
       <label>the line that hit <span class="hint">optional · one line, not the whole song</span> <span class="counter" id="lyricCount"></span>
         <textarea id="lyric" rows="2" maxlength="150" placeholder="the part you'd rewind"></textarea>
       </label>
+      <div class="delivery">
+        <label class="switch">
+          <input id="isPrivate" type="checkbox">
+          <span class="switch-ui" aria-hidden="true"></span>
+          <span class="switch-text"><strong>keep it private</strong><span class="hint">not on the wall or in search. only people with the link can open it</span></span>
+        </label>
+        <label id="emailField" hidden>email it to them <span class="hint">optional · anonymous · we never store the address</span>
+          <input id="toEmail" type="email" inputmode="email" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="254" placeholder="their@email.com">
+        </label>
+      </div>
       <input id="hp" class="hp" tabindex="-1" autocomplete="off" aria-hidden="true">
       <button id="sendBtn" class="btn primary big" type="submit">send anonymously</button>
-      <p class="hint center">public on the wall · no account · no name attached</p>
+      <p class="hint center" id="sendNote">public on the wall · no account · no name attached</p>
     </form>
   </section>
 
@@ -126,10 +136,23 @@
     <div class="panel center">
       <div class="vinyl spin" aria-hidden="true"></div>
       <h1 class="ghost-text">sent.</h1>
-      <p>they'll never know it was you. send them the link, or let them find it.</p>
+      <p id="sentLead">your name isn’t on it. now get it to them.</p>
+      <p id="emailStatus" class="email-status" role="status" hidden></p>
+
+      <div class="deliver">
+        <p class="label">deliver it</p>
+        <div class="deliver-grid">
+          <a id="dWhatsApp" class="deliver-btn" target="_blank" rel="noopener"><span class="d-ico wa" aria-hidden="true">✆</span>WhatsApp</a>
+          <a id="dMessenger" class="deliver-btn" target="_blank" rel="noopener"><span class="d-ico ms" aria-hidden="true">✦</span>Messenger</a>
+          <a id="dTelegram" class="deliver-btn" target="_blank" rel="noopener"><span class="d-ico tg" aria-hidden="true">➤</span>Telegram</a>
+          <button id="dShare" class="deliver-btn" type="button"><span class="d-ico sh" aria-hidden="true">↗</span>more apps</button>
+          <button id="dCopy" class="deliver-btn" type="button"><span class="d-ico cp" aria-hidden="true">⧉</span>copy link</button>
+        </div>
+        <p class="hint">These send from your own account, so they’ll know it was you. To stay hidden, use email or let them find it on the wall.</p>
+      </div>
+
       <div class="row center">
         <a id="sentOpen" class="btn primary" href="#" data-nav>view it</a>
-        <button id="sentCopy" class="btn" type="button">copy link</button>
         <button id="sentAnother" class="btn ghost" type="button">send another</button>
       </div>
     </div>
@@ -139,6 +162,7 @@
   <section id="view-message" class="view" hidden>
     <article id="msgCard" class="msg">
       <p class="label" id="mTo"></p>
+      <p id="mPrivate" class="badge private-badge" hidden>private · only people with the link</p>
       <div class="art-wrap">
         <img id="mArt" alt="" referrerpolicy="no-referrer">
         <div id="mVinyl" class="vinyl" hidden></div>
@@ -216,7 +240,7 @@
 <div id="tour" class="tour" role="dialog" aria-labelledby="tourTitle" hidden>
   <div class="tour-card">
     <div class="tour-top">
-      <span class="label" id="tourStep">1 / 7</span>
+      <span class="label" id="tourStep">1 / 8</span>
       <button class="link" id="tourSkip" type="button">skip</button>
     </div>
     <div class="tour-body" id="tourBody"></div>

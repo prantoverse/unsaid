@@ -1,4 +1,4 @@
-import { SUPABASE_URL, SUPABASE_ANON_KEY, LIMITS, SEND_COOLDOWN_MS } from './config.js';
+import { SUPABASE_URL, SUPABASE_ANON_KEY, LIMITS, SEND_COOLDOWN_MS, EMAIL_DELIVERY } from './config.js';
 import { Background } from './gl.js';
 import { Preview } from './audio.js';
 import { searchSongs, normalizeLink, fetchLinkMeta, embedFor, isSafeArt, isSafePreview } from './song.js';
@@ -177,7 +177,7 @@ function card(m) {
     text('p', 'card-to', 'to: ' + m.to_name + (m.to_handle ? ' · @' + m.to_handle : '')),
     text('p', 'card-msg', m.message),
     text('p', 'card-song', '♪ ' + m.song_title + (m.song_artist ? ' — ' + m.song_artist : '')),
-    text('p', 'card-time', timeAgo(m.created_at)),
+    text('p', 'card-time', timeAgo(m.created_at) + (m.private ? ' · private' : '')),
   );
   a.append(art, body);
   a.addEventListener('pointerenter', () => setPalette(pal));
@@ -247,7 +247,63 @@ function resetSend() {
   $('.tabs').hidden = false;
   setTab('search');
   $('#toFields').hidden = false;
+  $('#emailField').hidden = !(EMAIL_DELIVERY || demo);
+  syncPrivacyNote();
   updateCounters();
+}
+
+function syncPrivacyNote() {
+  $('#sendNote').textContent = $('#isPrivate').checked
+    ? 'private · only people with the link · no name attached'
+    : 'public on the wall · no account · no name attached';
+}
+$('#isPrivate').addEventListener('change', () => { syncPrivacyNote(); bg.energy(0.4); pulseFrom($('#isPrivate').closest('.switch'), 0.4); });
+
+const EMAIL_RE = /^[^\s@<>()",;:]{1,64}@[a-z0-9.-]{1,190}\.[a-z]{2,24}$/i;
+const EMAIL_ERRORS = {
+  not_configured: 'email delivery isn’t switched on yet. send them the link instead',
+  unavailable: 'that address can’t get UNSAID emails. send them the link instead',
+  device_limit: 'you’ve used today’s 3 emails. send them the link instead',
+  daily_limit: 'UNSAID hit today’s email limit. send them the link instead',
+  too_old: 'too late to email this one. send them the link instead',
+  already_sent: 'already emailed',
+};
+async function deliverEmail(id, email) {
+  if (demo) { await new Promise((r) => setTimeout(r, 700)); return { ok: true }; }
+  try {
+    const r = await fetch(`${SUPABASE_URL}/functions/v1/send-song-email`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', apikey: SUPABASE_ANON_KEY },
+      body: JSON.stringify({ id, email, device: DEVICE }),
+    });
+    return await r.json().catch(() => ({ ok: false, reason: 'send_failed' }));
+  } catch { return { ok: false, reason: 'send_failed' }; }
+}
+
+function setupDeliver(id, isPrivate) {
+  const link = msgLink(id);
+  const teaser = 'someone sent you a song 🎧';
+  const msg = `${teaser}\n${link}`;
+  const enc = encodeURIComponent;
+  const mobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  $('#dWhatsApp').href = `https://wa.me/?text=${enc(msg)}`;
+  $('#dTelegram').href = `https://t.me/share/url?url=${enc(link)}&text=${enc(teaser)}`;
+  $('#dMessenger').href = mobile ? `fb-messenger://share/?link=${enc(link)}` : `https://www.messenger.com/`;
+  $('#dWhatsApp').onclick = () => track('deliver', id);
+  $('#dTelegram').onclick = () => track('deliver', id);
+  $('#dMessenger').onclick = () => {
+    track('deliver', id);
+    if (!mobile) { copy(link, false); toast('link copied. paste it in Messenger'); }
+  };
+  $('#dShare').hidden = !navigator.share;
+  $('#dShare').onclick = async () => {
+    track('deliver', id);
+    try { await navigator.share({ title: 'UNSAID', text: teaser, url: link }); } catch { /* cancelled */ }
+  };
+  $('#dCopy').onclick = () => { track('deliver', id); copy(link); };
+  $('#sentLead').textContent = isPrivate
+    ? 'it’s private: only this link opens it. get it to them.'
+    : 'your name isn’t on it. it’s on the wall, or get it to them directly.';
 }
 
 function showSend({ to, name, prompt }) {
@@ -382,6 +438,8 @@ $('#sendForm').addEventListener('submit', async (e) => {
   const lyric = $('#lyric').value.trim();
   const title = $('#chosenTitle').value.trim();
   const artist = $('#chosenArtist').value.trim();
+  const isPrivate = $('#isPrivate').checked;
+  const toEmail = $('#emailField').hidden ? '' : $('#toEmail').value.trim();
   const fail = (msg, node) => { toast(msg); if (node && !node.closest('[hidden]')) { node.focus(); shake(node); } };
 
   if (!to_name) { $('#toFields').hidden = false; return fail('who is it for?', $('#toName')); }
@@ -389,6 +447,7 @@ $('#sendForm').addEventListener('submit', async (e) => {
   if (!chosen) return fail('pick a song first', $('#songQuery'));
   if (!title) return fail('add the song title', $('#chosenTitle'));
   if (!message) return fail('say something. even one word', $('#message'));
+  if (toEmail && !EMAIL_RE.test(toEmail)) return fail('that email looks off', $('#toEmail'));
   const last = store.get('unsaid:last', 0);
   if (Date.now() - last < SEND_COOLDOWN_MS) return fail('breathe. try again in a few seconds', btn);
 
@@ -406,6 +465,7 @@ $('#sendForm').addEventListener('submit', async (e) => {
     song_url: chosen.url,
     palette: chosen.palette || paletteFromString(title),
     token_hash: await sha256(token),
+    private: isPrivate,
   };
   const { error } = await sb.from('messages').insert(row);
   btn.disabled = false;
@@ -418,8 +478,24 @@ $('#sendForm').addEventListener('submit', async (e) => {
   pulseFrom(btn, 1);
   player.stop(); syncPlay();
   $('#sentOpen').href = `./?m=${id}`;
-  $('#sentCopy').onclick = () => copy(msgLink(id));
+  setupDeliver(id, isPrivate);
+  const status = $('#emailStatus');
+  status.hidden = !toEmail;
   show('sent');
+  if (toEmail) {
+    status.className = 'email-status pending';
+    status.textContent = 'emailing them anonymously…';
+    const r = await deliverEmail(id, toEmail);
+    if (r.ok) {
+      status.className = 'email-status ok';
+      status.textContent = '✓ emailed. it says “someone sent you a song”, nothing about you';
+      track('email', id);
+      pulseFrom(status, 0.6);
+    } else {
+      status.className = 'email-status err';
+      status.textContent = EMAIL_ERRORS[r.reason] || 'couldn’t email it. send them the link instead';
+    }
+  }
 });
 $('#sentAnother').addEventListener('click', () => route());
 
@@ -429,12 +505,14 @@ let current = null;
 async function showMessage(id) {
   show('loading');
   if (!/^[A-Za-z0-9]{10}$/.test(id)) return show('missing');
-  const { data: m, error } = await sb.from('messages').select(COLS).eq('id', id).maybeSingle();
+  const { data: rows, error } = await sb.rpc('get_messages', { p_ids: [id] });
+  const m = rows?.[0];
   if (error || !m) return show('missing');
   current = m;
   track('view', m.id);
   setPalette(palOf(m));
 
+  $('#mPrivate').hidden = !m.private;
   $('#mTo').textContent = 'to: ' + m.to_name + (m.to_handle ? ' · @' + m.to_handle : '');
   const art = $('#mArt');
   const hasArt = isSafeArt(m.artwork_url);
@@ -527,7 +605,7 @@ async function showMine() {
   const mine = getMine();
   let rows = [];
   if (mine.length) {
-    const { data, error } = await sb.from('messages').select(COLS).in('id', mine.map((x) => x.id));
+    const { data, error } = await sb.rpc('get_messages', { p_ids: mine.slice(0, 50).map((x) => x.id) });
     if (error) toast(error.message);
     rows = (data || []).sort((a, b) => b.created_at.localeCompare(a.created_at));
   }
@@ -618,7 +696,7 @@ const TOUR = [
     title: 'Send a song',
     body: 'Write who it is for, pick a song, then say what you never said.',
     target: '.cta .btn.primary',
-    flow: ['to: their name or @handle', 'search a song or paste a Spotify / YouTube link', 'add your message (and the line that hit)', 'send. nobody sees it was you'],
+    flow: ['to: their name or @handle', 'search a song or paste a Spotify / YouTube link', 'add your message (and the line that hit)', 'send. then deliver it by link or email, or let them find it'],
     numbered: true,
     actions: [{ label: 'send one now', run: () => { closeTour(); go('./?send'); } }],
   },
@@ -640,6 +718,11 @@ const TOUR = [
     flow: ['tap share', 'pick Instagram, then Story', 'add a Link sticker', 'paste. the link is already copied'],
     numbered: true,
     foot: 'On a laptop the image downloads instead. Post it from your phone.',
+  },
+  {
+    title: 'Get it to them',
+    body: 'After sending you choose how it reaches them.',
+    flow: ['email: anonymous. UNSAID sends it, your name never appears', 'WhatsApp, Messenger, Telegram: quick, but it comes from you', 'private: off the wall, only the link opens it'],
   },
   {
     title: 'The wall',

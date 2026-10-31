@@ -15,6 +15,15 @@ No build step. Static files + Supabase. Host on GitHub Pages.
 - **Visual feedback:** a WebGL domain-warped shader recolors to each song's album art. It breathes with the audio (WebAudio analyser), ripples on send/select, follows the pointer and speeds up while you type. Text gets the afterimage ghost on transitions.
 - **Safety:** no accounts, no sender identity stored. Each sender gets a device-only delete token (stored hashed). 3 reports hide a message. Artwork/preview URLs are restricted to known music CDNs (no tracking pixels).
 
+## Getting it to them
+
+- **Private:** a toggle on the send form keeps a song off the wall and out of search. Only its link opens it (`get_messages()` RPC).
+- **Deliver by app:** after sending, the WhatsApp / Messenger / Telegram / share-sheet / copy buttons send the link with "someone sent you a song 🎧". These come from the sender's own account.
+- **Anonymous email:** the optional "email it to them" field calls the `send-song-email` Edge Function, which emails a designed card through Resend. The email shows the song but not the message (the message stays on the moderated site).
+  - **Limits:** 3 emails per device per day, 2 per address per day, 90 per day overall, and only within 15 minutes of sending.
+  - **Privacy:** addresses are stored only as sha256. A one-click unsubscribe blocks an address permanently.
+  - **Switching it on:** set the `RESEND_API_KEY` and `EMAIL_FROM` secrets in Supabase, then set `EMAIL_DELIVERY = true` in `config.js`.
+
 ## Guide
 
 A guided tour opens once on a visitor's first visit to the home page, and again any time from **guide** in the top bar (or `?guide`). It spotlights the real buttons and has quick actions (send one now, search my name, make my card). It uses the same pattern as AFTERIMAGE: Back/Next, dots, ← → keys, Esc to close.
