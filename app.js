@@ -247,7 +247,7 @@ function resetSend() {
   $('.tabs').hidden = false;
   setTab('search');
   $('#toFields').hidden = false;
-  $('#emailField').hidden = !(EMAIL_DELIVERY || demo);
+  $("#emailField").hidden = !EMAIL_DELIVERY;
   syncPrivacyNote();
   updateCounters();
 }
@@ -686,7 +686,7 @@ for (const b of $$('[data-close]')) b.addEventListener('click', () => b.closest(
 for (const d of $$('dialog')) d.addEventListener('click', (e) => { if (e.target === d) d.close(); });
 
 // ── guided tour (same pattern as AFTERIMAGE's) ───────────────────
-const EMAIL_ON = !!(EMAIL_DELIVERY || demo);
+const EMAIL_ON = !!EMAIL_DELIVERY;
 const tourTry = (sel) => () => { closeTour(); const n = $(sel); n?.focus?.(); if (n) pulseFrom(n, 0.6); };
 const TOUR = [
   {
