@@ -3,7 +3,7 @@ import { Background } from './gl.js';
 import { Preview } from './audio.js';
 import { searchSongs, normalizeLink, fetchLinkMeta, embedFor, isSafeArt, isSafePreview } from './song.js';
 import { paletteFor, paletteFromString } from './palette.js';
-import { renderMessageStory, renderRequestStory, toBlob, shareImage } from './story.js';
+import { renderMessageStory, renderRequestStory, toBlob, shareImage, blobToDataUrl, IN_APP, IS_IOS, inAppName, browserIntent } from './story.js';
 
 // ── basics ───────────────────────────────────────────────────────
 const $ = (s) => document.querySelector(s);
@@ -625,9 +625,13 @@ async function makeStory(canvasPromise, filename, link, hint) {
   if (story?.url) URL.revokeObjectURL(story.url);
   const url = URL.createObjectURL(blob);
   story = { blob, filename, link, url };
-  $('#storyPreview').src = url;
+  // data: URL so long-press → "Save image" works inside app browsers too
+  try { $('#storyPreview').src = await blobToDataUrl(blob); } catch { $('#storyPreview').src = url; }
   $('#storyDownload').href = url;
   $('#storyDownload').download = filename;
+  $('#storyDownload').hidden = IN_APP;
+  $('#storyInApp').hidden = !IN_APP;
+  $('#storyInApp').classList.remove('flash');
   $('#storyHint').textContent = hint;
   copy(link, false);
   $('#storyDialog').showModal();
@@ -641,6 +645,13 @@ $('#storyShare').addEventListener('click', async () => {
   const r = await shareImage(story.blob, story.filename);
   if (r === 'shared') toast('link copied. add a Link sticker ✦');
   else if (r === 'downloaded') toast('saved. post it from Instagram → Story');
+  else if (r === 'inapp') {
+    const n = $('#storyInApp');
+    n.hidden = false;
+    n.classList.remove('flash'); void n.offsetWidth; n.classList.add('flash');
+    n.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    toast('press and hold the picture to save it');
+  }
 });
 
 // request card
@@ -916,6 +927,31 @@ document.addEventListener('keydown', (e) => {
   else if (e.key === 'ArrowLeft') $('#tourBack').click();
   else if (e.key === 'Escape') closeTour();
 });
+
+// ── in-app browser help (Facebook / Instagram / Messenger…) ─────
+function setupInApp() {
+  if (!IN_APP) return;
+  const name = inAppName();
+  for (const n of $$('.inapp-name')) n.textContent = name;
+  const intent = browserIntent();
+  for (const a of $$('.open-browser')) {
+    a.hidden = !intent;
+    a.addEventListener('click', (e) => {
+      e.preventDefault();
+      track('deliver');
+      location.href = browserIntent() || location.href; // current URL, so the same song reopens
+    });
+  }
+  for (const n of $$('.ios-how')) n.hidden = !IS_IOS;
+  let dismissed = false;
+  try { dismissed = sessionStorage.getItem('unsaid:inappbar') === '1'; } catch { /* */ }
+  $('#inAppBar').hidden = dismissed;
+  $('#inAppClose').addEventListener('click', () => {
+    $('#inAppBar').hidden = true;
+    try { sessionStorage.setItem('unsaid:inappbar', '1'); } catch { /* */ }
+  });
+}
+setupInApp();
 
 // ── go ───────────────────────────────────────────────────────────
 updateCounters();

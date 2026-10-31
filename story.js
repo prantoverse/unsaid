@@ -304,12 +304,34 @@ export function toBlob(canvas) {
 }
 
 /** Native share sheet (→ Instagram → Story) where supported, else download. */
+// In-app browsers (Facebook, Instagram, Messenger, TikTok…) can't download
+// blob files: following one shows "page can't be loaded". Detect them.
+const UA = navigator.userAgent;
+export const IN_APP = /FBAN|FBAV|FB_IAB|FBIOS|FB4A|Instagram|Messenger|Line\/|MicroMessenger|Snapchat|TikTok|musical_ly|Bytedance|; wv\)/i.test(UA);
+export const IS_ANDROID = /Android/i.test(UA);
+export const IS_IOS = /iPhone|iPad|iPod/i.test(UA) || (/Macintosh/.test(UA) && navigator.maxTouchPoints > 1);
+export const inAppName = () =>
+  /Instagram/i.test(UA) ? 'Instagram' : /Messenger/i.test(UA) ? 'Messenger' : /FBAN|FBAV|FB_IAB|FBIOS|FB4A/i.test(UA) ? 'Facebook'
+  : /TikTok|musical_ly|Bytedance/i.test(UA) ? 'TikTok' : /Snapchat/i.test(UA) ? 'Snapchat' : 'this app';
+
+/** Android: an intent link that reopens the current page in the real browser. */
+export function browserIntent(url = location.href) {
+  if (!IS_ANDROID) return null;
+  const u = new URL(url);
+  return `intent://${u.host}${u.pathname}${u.search}${u.hash}#Intent;scheme=https;S.browser_fallback_url=${encodeURIComponent(url)};end`;
+}
+
+export function blobToDataUrl(blob) {
+  return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(blob); });
+}
+
 export async function shareImage(blob, filename) {
   const file = new File([blob], filename, { type: 'image/png' });
   if (navigator.canShare?.({ files: [file] })) {
     try { await navigator.share({ files: [file] }); return 'shared'; }
     catch (e) { if (e.name === 'AbortError') return 'cancelled'; }
   }
+  if (IN_APP) return 'inapp'; // never trigger a blob download inside an app browser
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob); a.download = filename;
   document.body.append(a); a.click(); a.remove();

@@ -26,6 +26,13 @@
   </nav>
 </header>
 
+<div id="inAppBar" class="inapp-bar" hidden>
+  <span>Opened inside <b class="inapp-name">an app</b>? Sharing to your story works best in your browser.</span>
+  <a class="btn open-browser" hidden>open in browser</a>
+  <span class="ios-how hint" hidden>tap ••• → Open in browser</span>
+  <button id="inAppClose" class="icon-btn" type="button" aria-label="dismiss">×</button>
+</div>
+
 <main>
   <!-- setup -->
   <section id="view-setup" class="view" hidden>
@@ -227,6 +234,15 @@
 <dialog id="storyDialog">
   <div class="dialog-body story">
     <img id="storyPreview" alt="story preview">
+    <div id="storyInApp" class="inapp-note" hidden>
+      <p><strong>You’re in <span class="inapp-name">this app</span>’s built-in browser.</strong> It can’t save or share images.</p>
+      <ul>
+        <li><b>Quick fix:</b> press and hold the picture above, then tap <b>Save image</b> / <b>Download image</b>.</li>
+        <li><b>Or</b> open UNSAID in your real browser, where share works in one tap.</li>
+      </ul>
+      <a class="btn primary open-browser" hidden>open in browser</a>
+      <p class="hint ios-how" hidden>Tap <b>•••</b> or <b>⋯</b> at the top right, then <b>Open in browser</b> / <b>Open in Safari</b>.</p>
+    </div>
     <p id="storyHint" class="hint"></p>
     <div class="row center">
       <button id="storyShare" class="btn primary" type="button">share</button>

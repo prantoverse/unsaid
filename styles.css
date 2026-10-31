@@ -287,6 +287,24 @@ dialog::backdrop { background: rgba(4, 2, 10, .6); backdrop-filter: blur(4px); }
 .d-ico.sh, .d-ico.cp { background: linear-gradient(135deg, var(--accent2), var(--accent)); }
 .private-badge { display: inline-block; margin: 0 auto 6px; }
 
+/* ── in-app browser help ──────────────── */
+.inapp-bar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
+  margin: 0 max(16px, env(safe-area-inset-right, 0px)) 8px max(16px, env(safe-area-inset-left, 0px));
+  padding: 10px 12px 10px 16px; border-radius: 16px; font-size: 13px; line-height: 1.4;
+  background: rgba(251, 191, 36, .1); border: 1px solid rgba(251, 191, 36, .35);
+}
+.inapp-bar > span:first-child { flex: 1 1 220px; min-width: 0; }
+.inapp-bar .btn { padding: 8px 14px; font-size: 13px; }
+.inapp-bar .icon-btn { width: 32px; height: 32px; }
+.inapp-note { display: grid; gap: 10px; padding: 14px; border-radius: 16px; font-size: 14px; background: rgba(251, 191, 36, .08); border: 1px solid rgba(251, 191, 36, .35); }
+.inapp-note p, .inapp-note ul { margin: 0; }
+.inapp-note ul { padding-left: 18px; display: grid; gap: 6px; color: var(--muted); }
+.inapp-note b, .inapp-note strong { color: var(--fg); }
+.inapp-note.flash { animation: noteFlash .9s ease 2; }
+@keyframes noteFlash { 50% { border-color: rgba(251, 191, 36, .9); box-shadow: 0 0 0 4px rgba(251, 191, 36, .2); } }
+.story img { -webkit-touch-callout: default; user-select: auto; }
+
 /* ── guided tour ──────────────────────── */
 .tour {
   position: fixed; inset: 0; z-index: 20; pointer-events: none;
