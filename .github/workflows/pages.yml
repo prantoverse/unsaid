@@ -18,6 +18,13 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+      - name: Cache-bust scripts and styles
+        # GitHub Pages caches files for 10 minutes; versioned URLs make every deploy load fresh code.
+        run: |
+          V="${GITHUB_SHA::8}"
+          sed -i -E "s#(from '\./[a-z]+\.js)'#\1?v=$V'#g; s#(import\('\./[a-z]+\.js)'#\1?v=$V'#g" *.js
+          sed -i -E "s#(src=\"[a-z]+\.js)\"#\1?v=$V\"#g; s#(href=\"styles\.css)\"#\1?v=$V\"#g" *.html
+          grep -h "?v=" *.html *.js | head -5
       - uses: actions/configure-pages@v5
         with:
           enablement: true
