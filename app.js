@@ -686,33 +686,72 @@ for (const b of $$('[data-close]')) b.addEventListener('click', () => b.closest(
 for (const d of $$('dialog')) d.addEventListener('click', (e) => { if (e.target === d) d.close(); });
 
 // ── guided tour (same pattern as AFTERIMAGE's) ───────────────────
+const EMAIL_ON = !!(EMAIL_DELIVERY || demo);
+const tourTry = (sel) => () => { closeTour(); const n = $(sel); n?.focus?.(); if (n) pulseFrom(n, 0.6); };
 const TOUR = [
   {
+    chapter: 'welcome', view: 'home', hero: true,
     title: 'Say it with a song',
-    body: 'UNSAID lets you send someone a song and the words you never said. It is anonymous: no account, no name attached. Here is how it works in one minute.',
-    hero: true,
+    body: 'Send someone a song and the words you never said. No account, and your name is never attached. One minute to see everything it does.',
+  },
+  // ── sending ──
+  {
+    chapter: 'sending', view: 'send', target: '#toFields',
+    title: 'Who it’s for',
+    body: 'Their name, plus their @instagram if you know it. The @handle makes it easy for them to find, since lots of people share a name.',
+    actions: [{ label: 'fill it in', run: tourTry('#toName') }],
   },
   {
-    title: 'Send a song',
-    body: 'Write who it is for, pick a song, then say what you never said.',
-    target: '.cta .btn.primary',
-    flow: ['to: their name or @handle', 'search a song or paste a Spotify / YouTube link', 'add your message (and the line that hit)', 'send. then deliver it by link or email, or let them find it'],
-    numbered: true,
-    actions: [{ label: 'send one now', run: () => { closeTour(); go('./?send'); } }],
+    chapter: 'sending', view: 'send', target: '#sendForm .field',
+    title: 'Pick the song',
+    body: 'Search any song, or paste a Spotify, YouTube or SoundCloud link. Searched songs come with a 30-second preview, and the whole screen takes on the cover’s colours.',
+    actions: [{ label: 'search a song', run: tourTry('#songQuery') }],
   },
   {
+    chapter: 'sending', view: 'send', target: '#message',
+    title: 'Say the thing',
+    body: 'Your message, up to 500 characters. Add the one line of the song that hit, if you like; one line, not the lyrics.',
+  },
+  {
+    chapter: 'sending', view: 'send', target: '#sendForm .switch',
+    title: 'Public or private',
+    body: 'By default it goes on the wall, where anyone can see it and they can find it by searching their name.',
+    flow: ['public: on the wall and in search', 'private: hidden from both. only its link opens it'],
+    actions: [{ label: 'show me the switch', run: tourTry('#isPrivate') }],
+  },
+  ...(EMAIL_ON ? [{
+    chapter: 'sending', view: 'send', target: '#emailField',
+    title: 'Email it, anonymously',
+    body: 'Add their email and UNSAID sends it for you. The email says “someone sent you a song”, shows the song, and links to your message. Nothing in it points to you.',
+    flow: ['we never store the address, only a scrambled fingerprint of it', 'they can block all UNSAID emails in one tap', '3 emails per person per day, so it can’t be used to spam'],
+  }] : []),
+  {
+    chapter: 'sending',
+    title: 'Get it to them',
+    body: 'After you send, you pick how it reaches them:',
+    flow: [
+      ...(EMAIL_ON ? ['email: anonymous, UNSAID sends it'] : []),
+      'WhatsApp, Messenger, Telegram: fast, but it comes from your account, so they’ll know',
+      'copy link: paste it anywhere',
+      'do nothing: they find it on the wall by searching their name',
+    ],
+    preview: 'deliver',
+  },
+  // ── receiving ──
+  {
+    chapter: 'receiving', view: 'home', target: '#searchForm',
     title: 'Find songs sent to you',
-    body: 'Search your name or your @handle. A handle finds only yours; a name finds everyone with that name.',
-    target: '#searchForm',
-    actions: [{ label: 'search my name', run: () => { closeTour(); $('#searchInput').focus(); } }],
+    body: 'Search your name or your @handle. A handle finds only yours; a name finds everyone with that name. Private songs never show up here.',
+    actions: [{ label: 'search my name', run: tourTry('#searchInput') }],
   },
   {
+    chapter: 'receiving', view: 'home', target: '#reqOpenBtn',
     title: 'Ask for songs',
-    body: 'Make a request card for your Instagram story. Friends who tap it land on a form already addressed to you.',
-    target: '#reqOpenBtn',
+    body: 'Make a request card for your story. Friends who tap it land on a form already addressed to you.',
     actions: [{ label: 'make my card', run: () => { closeTour(); $('#reqOpenBtn').click(); } }],
   },
   {
+    chapter: 'receiving',
     title: 'Post it to your story',
     body: 'Works for your request card and for any song someone sent you.',
     flow: ['tap share', 'pick Instagram, then Story', 'add a Link sticker', 'paste. the link is already copied'],
@@ -720,38 +759,84 @@ const TOUR = [
     foot: 'On a laptop the image downloads instead. Post it from your phone.',
   },
   {
-    title: 'Get it to them',
-    body: 'After sending you choose how it reaches them.',
-    flow: ['email: anonymous. UNSAID sends it, your name never appears', 'WhatsApp, Messenger, Telegram: quick, but it comes from you', 'private: off the wall, only the link opens it'],
-  },
-  {
+    chapter: 'receiving', view: 'home', target: '#wall',
     title: 'The wall',
-    body: 'Every song lands here. Tap one to hear a 30-second preview: the whole screen takes the cover’s colours and moves with the beat.',
-    target: '#wall',
+    body: 'Every public song lands here. Tap one to hear its preview: the screen takes the cover’s colours and moves with the beat.',
+  },
+  // ── trust ──
+  {
+    chapter: 'what we keep',
+    title: 'What UNSAID keeps',
+    body: 'Plainly:',
+    split: [
+      ['stored', ['who it’s for (name / @handle)', 'your message, the song, the line', 'an anonymous counter of visits and taps, no names']],
+      ['never stored', ['your name or any account', 'email addresses (only a scrambled fingerprint)', 'which songs you sent, outside your own phone']],
+    ],
+    foot: 'Like any website, the server keeps standard technical logs.',
   },
   {
-    title: 'Kept kind',
-    body: 'A few things that keep it safe:',
-    flow: ['your name is never stored', 'delete anything you sent from “my sent” on the same device', 'anything hurtful can be reported. 3 reports hide it'],
+    chapter: 'what we keep',
+    title: 'You stay in control',
+    body: 'A few things that keep it kind:',
+    flow: ['delete anything you sent from “my sent”, on the same phone', 'report anything hurtful. 3 reports hide it right away', 'block UNSAID emails from the link in any email'],
     foot: 'Open this guide again any time from “guide” at the top.',
   },
 ];
 let tourAt = 0;
 let tourFocus = null;
+let tourView = null;
+let tourSeq = 0;
 
-function renderTour() {
+async function ensureTourView(v) {
+  if (!v || v === tourView) return;
+  tourView = v;
+  if (v === 'send') { if ($('#view-send').hidden) showSend({}); }
+  else if ($('#view-home').hidden) await showHome();
+}
+
+function deliverPreview() {
+  const g = el('div', 'deliver-grid tour-deliver');
+  const items = [...(EMAIL_ON ? [['✉', 'email', 'em']] : []), ['✆', 'WhatsApp', 'wa'], ['✦', 'Messenger', 'ms'], ['➤', 'Telegram', 'tg'], ['⧉', 'copy link', 'cp']];
+  for (const [ico, label, cls] of items) {
+    const b = el('span', 'deliver-btn');
+    b.append(text('span', 'd-ico ' + cls, ico), document.createTextNode(label));
+    g.append(b);
+  }
+  return g;
+}
+
+async function renderTour() {
+  const seq = ++tourSeq;
   const step = TOUR[tourAt];
+  tourFocus?.classList.remove('tour-focus');
+  tourFocus = null;
+  await ensureTourView(step.view);
+  if (seq !== tourSeq) return;
+
   const body = $('#tourBody');
   body.replaceChildren();
-  $('#tourStep').textContent = `${tourAt + 1} / ${TOUR.length}`;
+  $('#tourStep').textContent = `${step.chapter} · ${tourAt + 1} / ${TOUR.length}`;
   if (step.hero) { const v = el('div', 'vinyl spin tour-hero'); v.setAttribute('aria-hidden', 'true'); body.append(v); }
   const h = text('h2', 'tour-title ghost-text', step.title);
   h.id = 'tourTitle';
   body.append(h, text('p', 'tour-text', step.body));
+  if (step.preview === 'deliver') body.append(deliverPreview());
   if (step.flow) {
     const ol = el(step.numbered ? 'ol' : 'ul', 'tour-flow' + (step.numbered ? ' numbered' : ''));
     for (const f of step.flow) ol.append(text('li', null, f));
     body.append(ol);
+  }
+  if (step.split) {
+    const wrap = el('div', 'tour-split');
+    for (const [label, items] of step.split) {
+      const col = el('div', 'tour-col ' + (label.startsWith('never') ? 'never' : 'kept'));
+      col.append(text('p', 'label', label));
+      const ul = el('ul');
+      for (const it of items) ul.append(text('li', null, it));
+      col.append(ul);
+      wrap.append(col);
+    }
+    body.append(wrap);
   }
   if (step.actions) {
     const row = el('div', 'row tour-actions');
@@ -762,10 +847,13 @@ function renderTour() {
 
   const dots = $('#tourDots');
   dots.replaceChildren();
-  TOUR.forEach((_, i) => {
+  let lastChapter = null;
+  TOUR.forEach((st, i) => {
+    if (lastChapter && st.chapter !== lastChapter) dots.append(el('span', 'tour-gap'));
+    lastChapter = st.chapter;
     const d = el('button', 'tour-dot');
     d.type = 'button';
-    d.setAttribute('aria-label', `step ${i + 1}`);
+    d.setAttribute('aria-label', `step ${i + 1}: ${st.title}`);
     if (i === tourAt) d.setAttribute('aria-current', 'step');
     d.addEventListener('click', () => { tourAt = i; renderTour(); });
     dots.append(d);
@@ -776,16 +864,19 @@ function renderTour() {
   const card = $('.tour-card');
   card.classList.remove('swap'); void card.offsetWidth; card.classList.add('swap');
 
-  tourFocus?.classList.remove('tour-focus');
-  tourFocus = step.target ? $(step.target) : null;
+  const target = step.target ? $(step.target) : null;
+  tourFocus = target && !target.closest('[hidden]') ? target : null;
   $('#tour').classList.toggle('spot', !!tourFocus);
+  const smooth = matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth';
   if (tourFocus) {
     tourFocus.classList.add('tour-focus');
+    // place the target in the clear space above the guide card
     const r = tourFocus.getBoundingClientRect();
-    scrollTo({ top: Math.max(0, r.top + scrollY - innerHeight * 0.18), behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
-    setTimeout(() => pulseFrom(tourFocus, 0.7), 350);
+    const cardTop = innerHeight - card.getBoundingClientRect().height - 24;
+    const want = Math.max(12, Math.min(innerHeight * 0.14, cardTop - r.height - 16));
+    scrollTo({ top: Math.max(0, r.top + scrollY - want), behavior: smooth });
+    setTimeout(() => tourFocus && pulseFrom(tourFocus, 0.7), 350);
   } else {
-    scrollTo({ top: 0, behavior: 'smooth' });
     pulseFrom(null, 0.5);
   }
 }
@@ -793,6 +884,7 @@ function renderTour() {
 function openTour(i = 0) {
   if (!$('#view-home').hidden || params().has('guide')) {
     tourAt = i;
+    tourView = $('#view-send').hidden ? 'home' : 'send';
     $('#tour').hidden = false;
     document.body.classList.add('touring');
     renderTour();
@@ -807,6 +899,8 @@ function closeTour() {
   document.body.classList.remove('touring');
   tourFocus?.classList.remove('tour-focus');
   tourFocus = null;
+  tourView = null;
+  tourSeq++;
   store.set('unsaid:toured', 1);
 }
 $('#tourNext').addEventListener('click', () => {
